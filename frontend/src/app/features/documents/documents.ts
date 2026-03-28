@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
+import { ApiService } from '../../core/api.service';
 
 @Component({
   selector: 'app-documents',
@@ -9,51 +10,49 @@ import { HttpClient } from '@angular/common/http';
   templateUrl: './documents.html',
   styleUrls: ['./documents.css']
 })
-export class DocumentsComponent {
+export class DocumentsComponent implements OnInit {
 
   documents: any[] = [];
-  loading: boolean = true;
+  loading = true;
+  error: string | null = null;
 
-  constructor(private http: HttpClient) {}
+  constructor(private api: ApiService, private router: Router) {}
 
   ngOnInit() {
     this.loadDocuments();
   }
 
   loadDocuments() {
-    this.http.get('http://localhost:8000/documents')
-      .subscribe({
-        next: (res: any) => {
-          this.documents = res;
-          this.loading = false;
-        },
-        error: (err) => {
-          console.error("Failed to load documents:", err);
-          this.loading = false;
-        }
-      });
+    this.loading = true;
+    this.error = null;
+    this.api.getDocuments().subscribe({
+      next: (res) => {
+        this.loading = false;
+        this.documents = res;
+        console.log("Res", res);
+        console.log("Loading state", this.loading)
+      },
+      error: (err) => {
+        console.error('Failed to load documents:', err);
+        this.error = err.error?.detail || 'Failed to load documents.';
+        this.loading = false;
+      },
+      complete: () => console.log('stream completed') // add this
+
+    });
   }
 
-   startAnalysis(docId: number) {
-  this.http.post(`http://localhost:8000/analysis/start/${docId}`, {})
-    .subscribe({
-      next: (res: any) => {
-        console.log("Analysis Response:", res);
-
+  startAnalysis(docId: number) {
+    this.api.startAnalysis(docId).subscribe({
+      next: (res) => {
         if (res.task_id) {
-          // AUTO REDIRECT TO ANALYSIS RESULT PAGE
-          window.location.href = `/analysis/${res.task_id}`;
-        } else {
-          alert("Analysis completed, but no task ID returned.");
+          this.router.navigate(['/analysis', res.task_id]);
         }
       },
-      error: (err: any) => {
-        console.error("Analysis error:", err);
-        alert("Analysis failed!");
+      error: (err) => {
+        console.error('Analysis error:', err);
+        alert(err.error?.detail || 'Analysis failed.');
       }
     });
-}
-
-
-
+  }
 }

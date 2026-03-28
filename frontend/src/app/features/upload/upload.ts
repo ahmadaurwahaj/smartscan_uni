@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { NgIf } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
+import { ApiService } from '../../core/api.service';
 
 @Component({
   selector: 'app-upload',
@@ -12,9 +13,10 @@ import { HttpClient } from '@angular/common/http';
 export class UploadComponent {
 
   selectedFile!: File;
-  message: string = '';
+  message = '';
+  isError = false;
 
-  constructor(private http: HttpClient) {}
+  constructor(private api: ApiService, private router: Router) {}
 
   onFileSelect(event: any) {
     this.selectedFile = event.target.files[0];
@@ -24,23 +26,25 @@ export class UploadComponent {
     event.preventDefault();
 
     if (!this.selectedFile) {
-      this.message = "Please select a file first.";
+      this.message = 'Please select a file first.';
+      this.isError = true;
       return;
     }
 
     const formData = new FormData();
     formData.append('file', this.selectedFile);
 
-    this.http.post('http://localhost:8000/documents/upload', formData)
-      .subscribe({
-        next: (res) => {
-          console.log("UPLOAD RESPONSE:", res);
-          this.message = "File uploaded successfully!";
-        },
-        error: (err) => {
-          console.error("UPLOAD ERROR:", err);
-          this.message = "Upload failed!";
-        }
-      });
+    this.api.uploadDocument(formData).subscribe({
+      next: (res) => {
+        this.message = `"${res.filename}" uploaded successfully!`;
+        this.isError = false;
+        setTimeout(() => this.router.navigate(['/documents']), 1000);
+      },
+      error: (err) => {
+        console.error('Upload error:', err);
+        this.message = err.error?.detail || 'Upload failed. Please try again.';
+        this.isError = true;
+      }
+    });
   }
 }

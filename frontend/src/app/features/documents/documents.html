@@ -1,16 +1,15 @@
 <div class="p-6">
   <h2 class="text-2xl font-bold mb-4">My Documents</h2>
 
-  <!-- Loader -->
   <p *ngIf="loading">Loading documents...</p>
 
-  <!-- No documents -->
-  <p *ngIf="!loading && documents.length === 0" class="text-gray-600">
+  <p *ngIf="error" class="text-red-600">{{ error }}</p>
+
+  <p *ngIf="!loading && !error && documents.length === 0" class="text-gray-600">
     No documents uploaded yet.
   </p>
 
-  <!-- Documents table -->
-  <table *ngIf="documents.length > 0" class="w-full border border-gray-300">
+  <table *ngIf="!loading && documents.length > 0" class="w-full border border-gray-300">
     <thead class="bg-gray-200">
       <tr>
         <th class="p-2 border">ID</th>
@@ -20,16 +19,14 @@
         <th class="p-2 border">Actions</th>
       </tr>
     </thead>
-
     <tbody>
       <tr *ngFor="let doc of documents" class="border">
         <td class="p-2 border">{{ doc.id }}</td>
         <td class="p-2 border">{{ doc.filename }}</td>
         <td class="p-2 border">{{ doc.size_kb }} KB</td>
         <td class="p-2 border">{{ doc.status }}</td>
-
         <td class="p-2 border">
-          <button 
+          <button
             class="bg-blue-600 text-white px-3 py-1 rounded"
             (click)="startAnalysis(doc.id)"
           >

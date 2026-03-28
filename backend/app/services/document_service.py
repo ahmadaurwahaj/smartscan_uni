@@ -6,7 +6,10 @@ from fastapi import UploadFile, HTTPException
 
 from app.models.document import Document
 from app.schemas.document import DocumentResponse
-from app.utils.text_extraction import extract_text_from_file   # required
+from app.utils.text_extraction import extract_text_from_file
+from app.utils.logger import get_logger
+
+logger = get_logger("document_service")
 
 UPLOAD_DIR = "uploads"
 if not os.path.exists(UPLOAD_DIR):
@@ -17,33 +20,46 @@ if not os.path.exists(UPLOAD_DIR):
 # Upload & Extract Text
 # ------------------------------------------------------------
 def upload_document(db: Session, file: UploadFile, user_id: int):
-
     file_path = os.path.join(UPLOAD_DIR, file.filename)
+    logger.debug(f"Saving file to: {file_path}")
 
-    # Save file to disk
-    with open(file_path, "wb") as f:
-        f.write(file.file.read())
+    try:
+        with open(file_path, "wb") as f:
+            f.write(file.file.read())
+        logger.debug(f"File saved successfully: {file_path}")
+    except Exception as e:
+        logger.error(f"Failed to save file '{file.filename}': {e}")
+        raise HTTPException(status_code=500, detail=f"Could not save file: {str(e)}")
 
     file_type = file.filename.split(".")[-1].lower()
     file_size_kb = os.path.getsize(file_path) // 1024
+    logger.debug(f"File type: {file_type}, size: {file_size_kb} KB")
 
-    # Extract text (PDF, DOCX, TXT)
-    text_content = extract_text_from_file(file_path)
+    logger.debug(f"Extracting text from: {file_path}")
+    try:
+        text_content = extract_text_from_file(file_path)
+        logger.debug(f"Text extracted, length={len(text_content) if text_content else 0} chars")
+    except Exception as e:
+        logger.error(f"Text extraction failed for '{file.filename}': {e}")
+        raise HTTPException(status_code=500, detail=f"Text extraction failed: {str(e)}")
 
-    # Save record
-    doc = Document(
-        filename=file.filename,
-        filepath=file_path,
-        file_type=file_type,
-        size_kb=file_size_kb,
-        text_content=text_content,
-        owner_id=user_id,
-        status="uploaded"
-    )
-
-    db.add(doc)
-    db.commit()
-    db.refresh(doc)
+    try:
+        doc = Document(
+            filename=file.filename,
+            filepath=file_path,
+            file_type=file_type,
+            size_kb=file_size_kb,
+            text_content=text_content,
+            owner_id=user_id,
+            status="uploaded"
+        )
+        db.add(doc)
+        db.commit()
+        db.refresh(doc)
+        logger.debug(f"Document record saved to DB: id={doc.id}")
+    except Exception as e:
+        logger.error(f"Database error saving document '{file.filename}': {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
     return DocumentResponse.model_validate(doc)
 
@@ -52,17 +68,27 @@ def upload_document(db: Session, file: UploadFile, user_id: int):
 # Get All Documents for User
 # ------------------------------------------------------------
 def get_user_documents(db: Session, user_id: int):
-    docs = db.query(Document).filter(Document.owner_id == user_id).all()
-    return [DocumentResponse.model_validate(doc) for doc in docs]
+    try:
+        docs = db.query(Document).filter(Document.owner_id == user_id).all()
+        logger.debug(f"Queried {len(docs)} documents for user_id={user_id}")
+        return [DocumentResponse.model_validate(doc) for doc in docs]
+    except Exception as e:
+        logger.error(f"DB query failed for user_id={user_id}: {e}")
+        raise
 
 
 # ------------------------------------------------------------
 # Get Single Document by ID
 # ------------------------------------------------------------
 def get_document_by_id(doc_id: int, db: Session):
-    doc = db.query(Document).filter(Document.id == doc_id).first()
+    try:
+        doc = db.query(Document).filter(Document.id == doc_id).first()
+    except Exception as e:
+        logger.error(f"DB query failed for document id={doc_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
     if not doc:
+        logger.warning(f"Document id={doc_id} not found.")
         raise HTTPException(status_code=404, detail="Document not found")
 
     return DocumentResponse.model_validate(doc)
@@ -72,16 +98,29 @@ def get_document_by_id(doc_id: int, db: Session):
 # Delete Document
 # ------------------------------------------------------------
 def delete_document(doc_id: int, db: Session):
-    doc = db.query(Document).filter(Document.id == doc_id).first()
+    try:
+        doc = db.query(Document).filter(Document.id == doc_id).first()
+    except Exception as e:
+        logger.error(f"DB query failed when deleting document id={doc_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
     if not doc:
+        logger.warning(f"Delete attempted on non-existent document id={doc_id}")
         raise HTTPException(status_code=404, detail="Document not found")
 
-    # Delete file from disk
     if os.path.exists(doc.filepath):
-        os.remove(doc.filepath)
+        try:
+            os.remove(doc.filepath)
+            logger.debug(f"File deleted from disk: {doc.filepath}")
+        except Exception as e:
+            logger.warning(f"Could not delete file from disk: {doc.filepath}: {e}")
 
-    db.delete(doc)
-    db.commit()
+    try:
+        db.delete(doc)
+        db.commit()
+        logger.debug(f"Document id={doc_id} removed from DB.")
+    except Exception as e:
+        logger.error(f"DB error deleting document id={doc_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
     return {"message": "Document deleted successfully"}

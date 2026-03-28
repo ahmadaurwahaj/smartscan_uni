@@ -6,8 +6,8 @@
 
     <label class="block">
       <span class="text-gray-700">Select Document</span>
-      <input 
-        type="file" 
+      <input
+        type="file"
         (change)="onFileSelect($event)"
         class="mt-2 block w-full border p-2 rounded"
         accept=".pdf,.doc,.docx,.txt"
@@ -15,7 +15,7 @@
       >
     </label>
 
-    <button 
+    <button
       type="submit"
       class="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
     >
@@ -24,6 +24,8 @@
 
   </form>
 
-  <p *ngIf="message" class="mt-4 text-green-600">{{ message }}</p>
+  <p *ngIf="message" [class]="isError ? 'mt-4 text-red-600' : 'mt-4 text-green-600'">
+    {{ message }}
+  </p>
 
 </div>
