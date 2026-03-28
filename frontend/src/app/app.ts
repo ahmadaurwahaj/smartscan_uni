@@ -12,5 +12,15 @@ import { AuthService } from './core/auth.service';
   templateUrl: './app.html',
 })
 export class App {
+  sidebarOpen = false;
+
   constructor(public auth: AuthService) {}
+
+  toggleSidebar(): void {
+    this.sidebarOpen = !this.sidebarOpen;
+  }
+
+  closeSidebar(): void {
+    this.sidebarOpen = false;
+  }
 }

@@ -15,6 +15,7 @@ export class UploadComponent {
   selectedFile!: File;
   message = '';
   isError = false;
+  uploading = false;
 
   constructor(private api: ApiService, private router: Router) {}
 
@@ -31,6 +32,9 @@ export class UploadComponent {
       return;
     }
 
+    this.uploading = true;
+    this.message = '';
+
     const formData = new FormData();
     formData.append('file', this.selectedFile);
 
@@ -38,12 +42,13 @@ export class UploadComponent {
       next: (res) => {
         this.message = `"${res.filename}" uploaded successfully!`;
         this.isError = false;
+        this.uploading = false;
         setTimeout(() => this.router.navigate(['/documents']), 1000);
       },
       error: (err) => {
-        console.error('Upload error:', err);
         this.message = err.error?.detail || 'Upload failed. Please try again.';
         this.isError = true;
+        this.uploading = false;
       }
     });
   }

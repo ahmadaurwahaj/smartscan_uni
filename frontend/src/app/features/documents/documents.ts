@@ -31,6 +31,10 @@ export class DocumentsComponent implements OnInit {
   previewText: string | null = null;
   previewLoading = false;
 
+  // Per-doc loading states
+  analyzingDocId: number | null = null;
+  downloadingDocId: number | null = null;
+
   constructor(private api: ApiService, private router: Router) {}
 
   ngOnInit(): void {
@@ -69,18 +73,23 @@ export class DocumentsComponent implements OnInit {
 
   // Analysis
   startAnalysis(docId: number): void {
+    this.analyzingDocId = docId;
+    this.error = null;
     this.api.startAnalysis(docId).subscribe({
       next: (res) => {
+        this.analyzingDocId = null;
         if (res.task_id) this.router.navigate(['/analysis', res.task_id]);
       },
       error: (err) => {
         this.error = err.error?.detail || 'Failed to start analysis.';
+        this.analyzingDocId = null;
       }
     });
   }
 
   // Download (R18)
   downloadDocument(doc: any): void {
+    this.downloadingDocId = doc.id;
     this.api.downloadDocument(doc.id).subscribe({
       next: (blob) => {
         const url = window.URL.createObjectURL(blob);
@@ -89,8 +98,12 @@ export class DocumentsComponent implements OnInit {
         a.download = doc.filename;
         a.click();
         window.URL.revokeObjectURL(url);
+        this.downloadingDocId = null;
       },
-      error: () => { this.error = 'Download failed.'; }
+      error: () => {
+        this.error = 'Download failed.';
+        this.downloadingDocId = null;
+      }
     });
   }
 

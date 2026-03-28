@@ -1,12 +1,28 @@
 <ng-container *ngIf="auth.isLoggedIn(); else authLayout">
-  <div class="flex">
-    <app-sidebar></app-sidebar>
+  <div class="flex h-screen overflow-hidden">
+
+    <!-- Mobile overlay backdrop -->
+    <div *ngIf="sidebarOpen"
+      class="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
+      (click)="closeSidebar()">
+    </div>
+
+    <!-- Sidebar: always visible on md+, slide-in drawer on mobile -->
+    <div class="fixed inset-y-0 left-0 z-30 md:relative md:z-auto transition-transform duration-300"
+      [class.-translate-x-full]="!sidebarOpen"
+      [class.translate-x-0]="sidebarOpen"
+      [class.md:translate-x-0]="true">
+      <app-sidebar (linkClicked)="closeSidebar()"></app-sidebar>
+    </div>
+
+    <!-- Main area -->
     <div class="flex-1 flex flex-col bg-gray-100 min-h-screen overflow-hidden">
-      <app-navbar></app-navbar>
-      <div class="p-6 overflow-auto flex-1">
+      <app-navbar (toggleSidebar)="toggleSidebar()"></app-navbar>
+      <div class="p-4 md:p-6 overflow-auto flex-1">
         <router-outlet></router-outlet>
       </div>
     </div>
+
   </div>
 </ng-container>
 

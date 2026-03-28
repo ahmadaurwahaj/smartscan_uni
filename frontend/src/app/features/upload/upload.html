@@ -9,7 +9,7 @@
       <input
         type="file"
         (change)="onFileSelect($event)"
-        class="mt-2 block w-full border p-2 rounded"
+        class="mt-2 block w-full border p-2 rounded cursor-pointer"
         accept=".pdf,.doc,.docx,.txt"
         required
       >
@@ -17,9 +17,10 @@
 
     <button
       type="submit"
-      class="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+      [disabled]="uploading"
+      class="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 transition cursor-pointer"
     >
-      Upload
+      {{ uploading ? 'Uploading...' : 'Upload' }}
     </button>
 
   </form>

@@ -20,6 +20,9 @@ export class HistoryComponent implements OnInit {
   filterFrom = '';
   filterTo = '';
 
+  // Per-task retry loading
+  retryingId: string | null = null;
+
   constructor(private api: ApiService) {}
 
   ngOnInit(): void {
@@ -58,15 +61,19 @@ export class HistoryComponent implements OnInit {
 
   // S04 — retry failed/cancelled
   retryTask(item: any): void {
+    this.retryingId = item.task_id;
+    this.error = null;
     this.api.retryAnalysis(item.task_id).subscribe({
       next: () => {
         item.status = 'running';
         item.progress = 0;
+        this.retryingId = null;
         this.successMessage = `Retrying analysis for "${item.filename}"...`;
         setTimeout(() => this.successMessage = null, 3000);
       },
       error: (err) => {
         this.error = err.error?.detail || 'Retry failed.';
+        this.retryingId = null;
       }
     });
   }

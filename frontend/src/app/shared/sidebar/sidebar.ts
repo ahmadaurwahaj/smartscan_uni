@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, Output, EventEmitter } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 
 @Component({
@@ -8,4 +8,6 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
   styleUrls: ['./sidebar.css'],
   imports: [RouterLink, RouterLinkActive]
 })
-export class SidebarComponent {}
+export class SidebarComponent {
+  @Output() linkClicked = new EventEmitter<void>();
+}
