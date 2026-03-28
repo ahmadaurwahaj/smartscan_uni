@@ -29,7 +29,7 @@ def upload_document(db: Session, file: UploadFile, user_id: int):
         logger.debug(f"File saved successfully: {file_path}")
     except Exception as e:
         logger.error(f"Failed to save file '{file.filename}': {e}")
-        raise HTTPException(status_code=500, detail=f"Could not save file: {str(e)}")
+        raise HTTPException(status_code=500, detail="Could not save the uploaded file. Please try again.")
 
     file_type = file.filename.split(".")[-1].lower()
     file_size_kb = os.path.getsize(file_path) // 1024
@@ -41,7 +41,7 @@ def upload_document(db: Session, file: UploadFile, user_id: int):
         logger.debug(f"Text extracted, length={len(text_content) if text_content else 0} chars")
     except Exception as e:
         logger.error(f"Text extraction failed for '{file.filename}': {e}")
-        raise HTTPException(status_code=500, detail=f"Text extraction failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Could not extract text from the document.")
 
     try:
         doc = Document(
@@ -59,7 +59,7 @@ def upload_document(db: Session, file: UploadFile, user_id: int):
         logger.debug(f"Document record saved to DB: id={doc.id}")
     except Exception as e:
         logger.error(f"Database error saving document '{file.filename}': {e}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Could not save document record. Please try again.")
 
     return DocumentResponse.model_validate(doc)
 
@@ -78,6 +78,19 @@ def get_user_documents(db: Session, user_id: int):
 
 
 # ------------------------------------------------------------
+# Get Raw Document Model (for internal use)
+# ------------------------------------------------------------
+def get_document_model(doc_id: int, db: Session):
+    try:
+        doc = db.query(Document).filter(Document.id == doc_id).first()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Could not retrieve document.")
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return doc
+
+
+# ------------------------------------------------------------
 # Get Single Document by ID
 # ------------------------------------------------------------
 def get_document_by_id(doc_id: int, db: Session):
@@ -85,7 +98,7 @@ def get_document_by_id(doc_id: int, db: Session):
         doc = db.query(Document).filter(Document.id == doc_id).first()
     except Exception as e:
         logger.error(f"DB query failed for document id={doc_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Could not retrieve document.")
 
     if not doc:
         logger.warning(f"Document id={doc_id} not found.")
@@ -102,7 +115,7 @@ def delete_document(doc_id: int, db: Session):
         doc = db.query(Document).filter(Document.id == doc_id).first()
     except Exception as e:
         logger.error(f"DB query failed when deleting document id={doc_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Could not delete document. Please try again.")
 
     if not doc:
         logger.warning(f"Delete attempted on non-existent document id={doc_id}")
@@ -121,6 +134,6 @@ def delete_document(doc_id: int, db: Session):
         logger.debug(f"Document id={doc_id} removed from DB.")
     except Exception as e:
         logger.error(f"DB error deleting document id={doc_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Could not delete document. Please try again.")
 
     return {"message": "Document deleted successfully"}

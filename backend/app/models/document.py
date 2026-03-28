@@ -23,5 +23,5 @@ class Document(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    keyword_stats = relationship("KeywordStat", back_populates="document")
-    analysis_task = relationship("AnalysisTask", uselist=False, back_populates="document")
+    keyword_stats = relationship("KeywordStat", back_populates="document", cascade="all, delete-orphan")
+    analysis_task = relationship("AnalysisTask", uselist=False, back_populates="document", cascade="all, delete-orphan")

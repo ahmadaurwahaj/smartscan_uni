@@ -1,6 +1,6 @@
 # app/schemas/auth.py
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import Optional
 from app.schemas.user import UserResponse
 
@@ -23,6 +23,11 @@ class TokenData(BaseModel):
 # ---------------------------------------
 # Auth Response
 # ---------------------------------------
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
 class AuthResponse(BaseModel):
     user: UserResponse
     token: Token

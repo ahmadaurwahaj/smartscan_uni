@@ -1,0 +1,84 @@
+<div class="p-6">
+  <h2 class="text-2xl font-bold text-gray-800 mb-4">Analysis History</h2>
+
+  <!-- Status messages (R05) -->
+  <div *ngIf="successMessage" class="mb-4 p-3 bg-green-50 border border-green-300 text-green-700 rounded">{{ successMessage }}</div>
+  <div *ngIf="error" class="mb-4 p-3 bg-red-50 border border-red-300 text-red-700 rounded">{{ error }}</div>
+
+  <!-- S02 — Date filter -->
+  <div class="bg-white rounded-lg shadow p-4 mb-4 flex flex-wrap gap-4 items-end">
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">From</label>
+      <input type="date" [(ngModel)]="filterFrom"
+        class="border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">To</label>
+      <input type="date" [(ngModel)]="filterTo"
+        class="border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+    </div>
+    <button (click)="clearFilter()"
+      class="border border-gray-300 px-3 py-1.5 rounded text-sm text-gray-600 hover:bg-gray-50 transition">
+      Clear
+    </button>
+  </div>
+
+  <p *ngIf="loading" class="text-gray-500">Loading history...</p>
+
+  <p *ngIf="!loading && filteredHistory.length === 0" class="text-gray-500">
+    No analysis history found.
+  </p>
+
+  <!-- History table (R16) -->
+  <div *ngIf="!loading && filteredHistory.length > 0" class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-gray-600 text-left">
+        <tr>
+          <th class="px-4 py-3">Document</th>
+          <th class="px-4 py-3">Status</th>
+          <th class="px-4 py-3">Progress</th>
+          <th class="px-4 py-3">Started</th>
+          <th class="px-4 py-3">Completed</th>
+          <th class="px-4 py-3">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of filteredHistory" class="border-t hover:bg-gray-50 transition">
+          <td class="px-4 py-3 font-medium text-gray-800">{{ item.filename }}</td>
+          <td class="px-4 py-3">
+            <span class="px-2 py-1 rounded-full text-xs font-medium"
+              [class.bg-yellow-100]="item.status === 'running'"   [class.text-yellow-700]="item.status === 'running'"
+              [class.bg-green-100]="item.status === 'completed'"  [class.text-green-700]="item.status === 'completed'"
+              [class.bg-red-100]="item.status === 'failed'"       [class.text-red-700]="item.status === 'failed'"
+              [class.bg-gray-100]="item.status === 'cancelled'"   [class.text-gray-600]="item.status === 'cancelled'"
+            >{{ item.status }}</span>
+          </td>
+          <td class="px-4 py-3">
+            <div class="flex items-center gap-2">
+              <div class="w-20 bg-gray-200 rounded-full h-2">
+                <div class="h-2 rounded-full bg-blue-500" [style.width.%]="item.progress"></div>
+              </div>
+              <span class="text-gray-500 text-xs">{{ item.progress }}%</span>
+            </div>
+          </td>
+          <td class="px-4 py-3 text-gray-500">{{ item.started_at | date:'short' }}</td>
+          <td class="px-4 py-3 text-gray-500">{{ item.completed_at ? (item.completed_at | date:'short') : '—' }}</td>
+          <td class="px-4 py-3">
+            <div class="flex gap-2">
+              <a [routerLink]="['/analysis', item.task_id]"
+                class="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700 transition">
+                View
+              </a>
+              <!-- S04 — Retry -->
+              <button *ngIf="item.status === 'failed' || item.status === 'cancelled'"
+                (click)="retryTask(item)"
+                class="bg-yellow-500 text-white px-2 py-1 rounded text-xs hover:bg-yellow-600 transition">
+                Retry
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

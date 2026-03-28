@@ -1,35 +1,30 @@
-<div class="w-64 h-screen bg-gray-900 text-white p-4 space-y-2">
+<div class="w-56 h-screen bg-gray-900 text-white flex flex-col p-4 space-y-1">
 
-  <a 
-    routerLink="/" 
-    routerLinkActive="active" 
-    class="menu-link block px-4 py-2 rounded-md hover:bg-gray-700 transition cursor-pointer"
-  >
+  <p class="text-xs text-gray-500 uppercase font-semibold px-2 mb-2 mt-1">Menu</p>
+
+  <a routerLink="/" routerLinkActive="bg-gray-700" [routerLinkActiveOptions]="{exact: true}"
+    class="block px-3 py-2 rounded-md text-sm hover:bg-gray-700 transition">
     Dashboard
   </a>
 
-  <a 
-    routerLink="/upload" 
-    routerLinkActive="active" 
-    class="menu-link block px-4 py-2 rounded-md hover:bg-gray-700 transition cursor-pointer"
-  >
+  <a routerLink="/upload" routerLinkActive="bg-gray-700"
+    class="block px-3 py-2 rounded-md text-sm hover:bg-gray-700 transition">
     Upload Document
   </a>
 
-  <a 
-    routerLink="/documents" 
-    routerLinkActive="active" 
-    class="menu-link block px-4 py-2 rounded-md hover:bg-gray-700 transition cursor-pointer"
-  >
+  <a routerLink="/documents" routerLinkActive="bg-gray-700"
+    class="block px-3 py-2 rounded-md text-sm hover:bg-gray-700 transition">
     Documents
   </a>
 
-  <a 
-    routerLink="/search" 
-    routerLinkActive="active" 
-    class="menu-link block px-4 py-2 rounded-md hover:bg-gray-700 transition cursor-pointer"
-  >
+  <a routerLink="/search" routerLinkActive="bg-gray-700"
+    class="block px-3 py-2 rounded-md text-sm hover:bg-gray-700 transition">
     Search
+  </a>
+
+  <a routerLink="/history" routerLinkActive="bg-gray-700"
+    class="block px-3 py-2 rounded-md text-sm hover:bg-gray-700 transition">
+    Analysis History
   </a>
 
 </div>

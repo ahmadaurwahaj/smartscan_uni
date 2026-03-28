@@ -1,1 +1,57 @@
-<p>search works!</p>
+<div class="p-6 max-w-3xl mx-auto">
+  <h2 class="text-2xl font-bold text-gray-800 mb-4">Search Documents</h2>
+
+  <div *ngIf="error" class="mb-4 p-3 bg-red-50 border border-red-300 text-red-700 rounded">{{ error }}</div>
+
+  <!-- Search input (S01) -->
+  <div class="flex gap-3 mb-6">
+    <input
+      type="text"
+      [(ngModel)]="searchQuery"
+      (ngModelChange)="onSearch()"
+      placeholder="Search by filename..."
+      class="flex-1 border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+    />
+    <button *ngIf="searchQuery" (click)="clearSearch()"
+      class="border border-gray-300 px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition">
+      Clear
+    </button>
+  </div>
+
+  <p *ngIf="initialLoad" class="text-gray-400 text-sm">Loading documents...</p>
+
+  <!-- No query yet -->
+  <div *ngIf="!initialLoad && !searchQuery" class="text-center py-12 text-gray-400">
+    <p class="text-lg">Type to search your documents</p>
+    <p class="text-sm mt-1">{{ allDocuments.length }} document(s) available</p>
+  </div>
+
+  <!-- No results -->
+  <p *ngIf="searchQuery && results.length === 0 && !initialLoad" class="text-gray-500">
+    No documents found matching <strong>"{{ searchQuery }}"</strong>.
+  </p>
+
+  <!-- Results -->
+  <div *ngIf="results.length > 0" class="space-y-3">
+    <p class="text-sm text-gray-500">{{ results.length }} result(s) for "{{ searchQuery }}"</p>
+    <div *ngFor="let doc of results"
+      class="bg-white rounded-lg shadow p-4 flex items-center justify-between hover:shadow-md transition">
+      <div>
+        <p class="font-medium text-gray-800">{{ doc.filename }}</p>
+        <div class="flex gap-3 mt-1 text-xs text-gray-500">
+          <span>{{ doc.size_kb }} KB</span>
+          <span>{{ doc.created_at | date:'mediumDate' }}</span>
+          <span class="px-2 py-0.5 rounded-full font-medium"
+            [class.bg-blue-100]="doc.status === 'uploaded'"   [class.text-blue-700]="doc.status === 'uploaded'"
+            [class.bg-green-100]="doc.status === 'completed'" [class.text-green-700]="doc.status === 'completed'"
+            [class.bg-yellow-100]="doc.status === 'processing'" [class.text-yellow-700]="doc.status === 'processing'"
+          >{{ doc.status }}</span>
+        </div>
+      </div>
+      <button (click)="startAnalysis(doc.id)"
+        class="bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700 transition">
+        Analyze
+      </button>
+    </div>
+  </div>
+</div>

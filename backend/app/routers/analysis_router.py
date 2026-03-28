@@ -1,11 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException
+# app/routers/analysis_router.py
+
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
+
 from app.database import get_db
+from app.models.analysis_task import AnalysisTask
+from app.models.document import Document
 from app.services.analysis_service import (
     create_analysis_task,
-    process_analysis_task,
-    get_analysis_result
+    process_analysis_background,
+    get_analysis_result,
+    get_analysis_history,
 )
+from app.services.auth_service import get_current_user
+from app.models.user import User
 from app.utils.logger import get_logger
 
 logger = get_logger("analysis_router")
@@ -13,53 +21,135 @@ logger = get_logger("analysis_router")
 router = APIRouter(prefix="/analysis", tags=["Analysis"])
 
 
-# Start analysis for a document
+# ------------------------------------------------------------
+# Start analysis (R10 — non-blocking via BackgroundTasks)
+# ------------------------------------------------------------
 @router.post("/start/{document_id}")
-def start_analysis(document_id: int, db: Session = Depends(get_db)):
-    logger.info(f"Analysis start requested for document_id={document_id}")
-    user_id = 1  # Temporary user
-
+def start_analysis(
+    document_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    logger.info(f"Analysis start requested: document_id={document_id}, user_id={current_user.id}")
     try:
-        AnalysisTask = getattr(__import__('app.models.analysis_task', fromlist=['AnalysisTask']), 'AnalysisTask')
-        existing_task = db.query(AnalysisTask).filter(
+        existing = db.query(AnalysisTask).filter(
             AnalysisTask.document_id == document_id
         ).first()
 
-        if existing_task:
-            logger.info(f"Existing analysis task found: task_id={existing_task.task_id}")
-            task = existing_task
-        else:
-            logger.info(f"Creating new analysis task for document_id={document_id}")
-            task = create_analysis_task(db, document_id, user_id)
-            logger.info(f"Analysis task created: task_id={task.task_id}")
+        if existing:
+            if existing.status == "running":
+                return {"task_id": existing.task_id, "status": "running"}
+            # Reuse existing task — reset it instead of creating a new one
+            # (avoids one-to-one relationship integrity error)
+            existing.status = "running"
+            existing.progress = 0
+            existing.completed_at = None
+            db.commit()
+            db.refresh(existing)
+            background_tasks.add_task(process_analysis_background, existing.task_id)
+            logger.info(f"Re-using existing task: task_id={existing.task_id}")
+            return {"task_id": existing.task_id, "status": "running"}
 
-        logger.info(f"Processing task_id={task.task_id}")
-        process_analysis_task(db, task.task_id)
-        logger.info(f"Task task_id={task.task_id} completed successfully.")
+        task = create_analysis_task(db, document_id, current_user.id)
+        background_tasks.add_task(process_analysis_background, task.task_id)
+        logger.info(f"Background analysis scheduled: task_id={task.task_id}")
+        return {"task_id": task.task_id, "status": "running"}
 
-        return {"task_id": task.task_id, "status": "completed"}
-
-    except HTTPException as e:
-        logger.warning(f"Analysis failed for document_id={document_id}: {e.detail}")
+    except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Unexpected error during analysis for document_id={document_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+        logger.error(f"Failed to start analysis for document_id={document_id}: {e}")
+        raise HTTPException(status_code=500, detail="Could not start analysis. Please try again.")
 
 
-# Get analysis result
+# ------------------------------------------------------------
+# Get analysis result / status (R11 — frontend polls this)
+# ------------------------------------------------------------
 @router.get("/result/{task_id}")
-def get_result(task_id: str, db: Session = Depends(get_db)):
-    logger.info(f"Fetching result for task_id={task_id}")
+def get_result(
+    task_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    logger.info(f"Fetching result: task_id={task_id}")
     try:
-        result = get_analysis_result(db, task_id)
-        if "keywords" not in result or result["keywords"] is None:
-            result["keywords"] = []
-        logger.info(f"Result returned for task_id={task_id}, keywords={len(result.get('keywords', []))}")
-        return result
-    except HTTPException as e:
-        logger.warning(f"Task not found: task_id={task_id}: {e.detail}")
-        return {"task_id": task_id, "status": "pending", "keywords": []}
+        return get_analysis_result(db, task_id)
     except Exception as e:
-        logger.error(f"Unexpected error fetching result for task_id={task_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Could not retrieve analysis result: {str(e)}")
+        logger.error(f"Error fetching result for task_id={task_id}: {e}")
+        raise HTTPException(status_code=500, detail="Could not retrieve analysis result.")
+
+
+# ------------------------------------------------------------
+# Cancel analysis (R12)
+# ------------------------------------------------------------
+@router.delete("/cancel/{task_id}")
+def cancel_analysis(
+    task_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    task = db.query(AnalysisTask).filter(AnalysisTask.task_id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found.")
+
+    doc = db.query(Document).filter(
+        Document.id == task.document_id,
+        Document.owner_id == current_user.id
+    ).first()
+    if not doc:
+        raise HTTPException(status_code=403, detail="Access denied.")
+
+    if task.status not in ["running", "pending"]:
+        raise HTTPException(status_code=400, detail=f"Cannot cancel task with status '{task.status}'.")
+
+    task.status = "cancelled"
+    db.commit()
+    logger.info(f"Task cancelled: task_id={task_id}")
+    return {"message": "Analysis cancelled."}
+
+
+# ------------------------------------------------------------
+# Retry failed/cancelled analysis (S04)
+# ------------------------------------------------------------
+@router.post("/retry/{task_id}")
+def retry_analysis(
+    task_id: str,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    task = db.query(AnalysisTask).filter(AnalysisTask.task_id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found.")
+
+    doc = db.query(Document).filter(
+        Document.id == task.document_id,
+        Document.owner_id == current_user.id
+    ).first()
+    if not doc:
+        raise HTTPException(status_code=403, detail="Access denied.")
+
+    if task.status not in ["failed", "cancelled"]:
+        raise HTTPException(status_code=400, detail="Only failed or cancelled tasks can be retried.")
+
+    task.status = "running"
+    task.progress = 0
+    task.completed_at = None
+    db.commit()
+
+    background_tasks.add_task(process_analysis_background, task.task_id)
+    logger.info(f"Task retry scheduled: task_id={task_id}")
+    return {"task_id": task.task_id, "status": "running"}
+
+
+# ------------------------------------------------------------
+# Analysis history (R16)
+# ------------------------------------------------------------
+@router.get("/history")
+def analysis_history(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    logger.info(f"Fetching analysis history for user_id={current_user.id}")
+    return get_analysis_history(db, current_user.id)

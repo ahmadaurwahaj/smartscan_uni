@@ -6,8 +6,7 @@ from passlib.context import CryptContext
 
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse
-from app.schemas.auth import TokenData
-from app.utils.jwt_utils import create_access_token, decode_access_token
+from app.utils.jwt_utils import create_access_token, get_token_payload
 from app.database import get_db
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -36,20 +35,16 @@ def create_user(db: Session, user_data: UserCreate) -> UserResponse:
         )
 
     new_user = User(
-        name=user_data.name,
+        username=user_data.username,
         email=user_data.email,
-        password=hash_password(user_data.password),
+        password_hash=hash_password(user_data.password),
     )
 
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
 
-    return UserResponse(
-        id=new_user.id,
-        name=new_user.name,
-        email=new_user.email
-    )
+    return UserResponse.model_validate(new_user)
 
 
 # -------------------------------------------
@@ -61,7 +56,7 @@ def authenticate_user(db: Session, email: str, password: str):
     if not user:
         return None
 
-    if not verify_password(password, user.password):
+    if not verify_password(password, user.password_hash):
         return None
 
     return user
@@ -81,7 +76,7 @@ def login_user(db: Session, email: str, password: str):
     access_token = create_access_token({"sub": user.email})
 
     return {
-        "user": UserResponse.from_orm(user),
+        "user": UserResponse.model_validate(user),
         "token": {
             "access_token": access_token,
             "token_type": "bearer"
@@ -93,22 +88,14 @@ def login_user(db: Session, email: str, password: str):
 # Get Current User (FastAPI dependency)
 # -------------------------------------------
 def get_current_user(
-    token: str = Depends(decode_access_token),
+    payload: dict = Depends(get_token_payload),
     db: Session = Depends(get_db)
 ) -> User:
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token."
-        )
-
-    token_data = TokenData(username=token.get("sub"))
-    user = db.query(User).filter(User.email == token_data.username).first()
-
+    email = payload.get("sub")
+    user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found."
         )
-
     return user

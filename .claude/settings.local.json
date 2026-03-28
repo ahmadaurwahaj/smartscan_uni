@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(brew install:*)",
+      "Bash(pdftotext \"/Users/wahaj/Downloads/Smart-doc-system/updated requirement documents hassan.pdf\" -)",
+      "Bash(python3 -c \"import pypdf; r = pypdf.PdfReader\\(''/Users/wahaj/Downloads/Smart-doc-system/updated requirement documents hassan.pdf''\\); print\\(f''Pages: {len\\(r.pages\\)}''\\); [print\\(p.extract_text\\(\\)\\) for p in r.pages]\")",
+      "Bash(python3 -c \"import PyPDF2; r = PyPDF2.PdfReader\\(''/Users/wahaj/Downloads/Smart-doc-system/updated requirement documents hassan.pdf''\\); print\\(f''Pages: {len\\(r.pages\\)}''\\); [print\\(p.extract_text\\(\\)\\) for p in r.pages]\")",
+      "Bash(pip3 install:*)",
+      "Bash(python3 -c \":*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker-compose logs:*)"
+    ]
+  }
+}

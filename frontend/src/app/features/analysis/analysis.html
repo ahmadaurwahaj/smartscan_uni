@@ -1,52 +1,125 @@
-<!-- Loading and Error -->
-<div *ngIf="loading" class="text-gray-500 italic text-lg text-center mt-10">Loading analysis...</div> 
-<div *ngIf="error" class="text-red-600 font-semibold text-lg text-center mt-10">{{ error }}</div>
+<div class="p-6 max-w-5xl mx-auto">
 
-<!-- Main Analysis Card -->
-<div *ngIf="!loading && !error && result" class="max-w-5xl mx-auto mt-10 bg-white rounded-2xl shadow-xl p-6">
+  <p *ngIf="loading" class="text-gray-500 italic text-center mt-10">Loading analysis...</p>
+  <div *ngIf="error" class="p-3 bg-red-50 border border-red-300 text-red-700 rounded mb-4">{{ error }}</div>
 
-  <!-- Header -->
-  <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6">
-    <h2 class="text-3xl font-bold mb-2 md:mb-0">Task ID: {{ result.task_id }}</h2>
-    <span [ngClass]="{
-        'bg-green-500 text-white px-4 py-1 rounded-full font-semibold': result.status === 'completed',
-        'bg-yellow-400 text-white px-4 py-1 rounded-full font-semibold': result.status === 'running',
-        'bg-red-500 text-white px-4 py-1 rounded-full font-semibold': result.status === 'failed'
-      }" class="text-sm">
-      {{ result.status }}
-    </span>
-  </div>
+  <div *ngIf="!loading && result">
 
-  <!-- Progress Bar -->
-  <div class="mb-6">
-    <p class="mb-2 font-medium text-gray-700">Progress: {{ result.progress }}%</p>
-    <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-      <div class="h-4 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-500"
-           [style.width.%]="result.progress"></div>
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
+      <div>
+        <h2 class="text-2xl font-bold text-gray-800">Analysis Result</h2>
+        <p class="text-sm text-gray-500 font-mono">{{ result.task_id }}</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <!-- Status badge (R20) -->
+        <span class="px-3 py-1 rounded-full text-sm font-medium"
+          [class.bg-yellow-100]="isRunning"      [class.text-yellow-700]="isRunning"
+          [class.bg-green-100]="result.status === 'completed'"  [class.text-green-700]="result.status === 'completed'"
+          [class.bg-red-100]="result.status === 'failed'"       [class.text-red-700]="result.status === 'failed'"
+          [class.bg-gray-100]="result.status === 'cancelled'"   [class.text-gray-600]="result.status === 'cancelled'"
+        >{{ result.status }}</span>
+
+        <!-- R12 — Cancel button -->
+        <button *ngIf="isRunning" (click)="cancelAnalysis()" [disabled]="cancelling"
+          class="bg-red-500 text-white px-3 py-1.5 rounded text-sm hover:bg-red-600 disabled:opacity-50 transition">
+          {{ cancelling ? 'Cancelling...' : 'Cancel' }}
+        </button>
+
+        <!-- S04 — Retry button -->
+        <button *ngIf="result.status === 'failed' || result.status === 'cancelled'"
+          (click)="retryAnalysis()"
+          class="bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700 transition">
+          Retry
+        </button>
+      </div>
     </div>
-  </div>
 
-  <!-- Keywords Table -->
-  <div class="overflow-x-auto">
-    <table class="min-w-full divide-y divide-gray-200 rounded-lg">
-      <thead class="bg-gray-50">
-        <tr class="text-left text-gray-700 font-semibold">
-          <th class="px-6 py-3">Keyword</th>
-          <th class="px-6 py-3">Frequency</th>
-        </tr>
-      </thead>
-      <tbody class="bg-white divide-y divide-gray-200">
-        <tr *ngFor="let k of result.keywords" class="hover:bg-gray-100 transition-colors duration-200">
-          <td class="px-6 py-3">{{ k.keyword }}</td>
-          <td class="px-6 py-3">{{ k.frequency }}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+    <!-- R11 — Progress bar -->
+    <div class="mb-6 bg-white rounded-lg shadow p-4">
+      <div class="flex justify-between text-sm text-gray-600 mb-2">
+        <span>Progress</span>
+        <span>{{ result.progress }}%</span>
+      </div>
+      <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+        <div class="h-3 rounded-full transition-all duration-500"
+          [class.bg-blue-500]="isRunning"
+          [class.bg-green-500]="result.status === 'completed'"
+          [class.bg-red-400]="result.status === 'failed'"
+          [class.bg-gray-400]="result.status === 'cancelled'"
+          [style.width.%]="result.progress">
+        </div>
+      </div>
+    </div>
 
-  <!-- Footer Note -->
-  <div class="mt-6 text-gray-500 italic text-sm">
-    Analysis data is auto-generated. Updates in real-time as processing completes.
-  </div>
+    <!-- Summary (R05, R21) -->
+    <div *ngIf="result.status === 'completed'" class="grid grid-cols-2 gap-4 mb-6">
+      <div class="bg-white rounded-lg shadow p-4">
+        <p class="text-sm text-gray-500">Total Keywords Found</p>
+        <p class="text-2xl font-bold text-gray-800">{{ result.keywords.length }}</p>
+      </div>
+      <div class="bg-white rounded-lg shadow p-4">
+        <p class="text-sm text-gray-500">Top Keyword</p>
+        <p class="text-2xl font-bold text-blue-600">{{ topKeywords[0]?.keyword || '—' }}</p>
+      </div>
+    </div>
 
+    <!-- Tabs for Keywords Table + Chart (R14, R15) -->
+    <div *ngIf="result.status === 'completed' && result.keywords.length > 0" class="bg-white rounded-lg shadow">
+      <div class="flex border-b">
+        <button (click)="switchTab('keywords')"
+          class="px-5 py-3 text-sm font-medium transition"
+          [class.border-b-2]="activeTab === 'keywords'"
+          [class.border-blue-600]="activeTab === 'keywords'"
+          [class.text-blue-600]="activeTab === 'keywords'"
+          [class.text-gray-500]="activeTab !== 'keywords'">
+          Keywords Table
+        </button>
+        <button (click)="switchTab('chart')"
+          class="px-5 py-3 text-sm font-medium transition"
+          [class.border-b-2]="activeTab === 'chart'"
+          [class.border-blue-600]="activeTab === 'chart'"
+          [class.text-blue-600]="activeTab === 'chart'"
+          [class.text-gray-500]="activeTab !== 'chart'">
+          Chart
+        </button>
+      </div>
+
+      <!-- R14 — Keywords table -->
+      <div *ngIf="activeTab === 'keywords'" class="overflow-auto max-h-96">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 sticky top-0">
+            <tr>
+              <th class="px-4 py-3 text-left text-gray-600">Keyword</th>
+              <th class="px-4 py-3 text-left text-gray-600">Frequency</th>
+              <th class="px-4 py-3 text-left text-gray-600">Bar</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let k of topKeywords" class="border-t hover:bg-gray-50">
+              <td class="px-4 py-2 font-medium text-gray-800">{{ k.keyword }}</td>
+              <td class="px-4 py-2 text-gray-600">{{ k.frequency }}</td>
+              <td class="px-4 py-2 w-40">
+                <div class="bg-blue-100 rounded-full h-2 overflow-hidden">
+                  <div class="bg-blue-500 h-2 rounded-full"
+                    [style.width.%]="(k.frequency / topKeywords[0].frequency) * 100"></div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- R15 — Chart -->
+      <div *ngIf="activeTab === 'chart'" class="p-4">
+        <canvas #chartCanvas style="max-height: 400px;"></canvas>
+      </div>
+    </div>
+
+    <p *ngIf="result.status === 'completed' && result.keywords.length === 0"
+      class="text-gray-500 text-center mt-6">
+      No keywords were extracted from this document.
+    </p>
+
+  </div>
 </div>
