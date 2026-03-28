@@ -1,0 +1,198 @@
+describe('template spec', () => {
+  it('passes', () => {
+       describe('Homepage Test', () => {
+         it('opens homepage successfully', () =>
+           {
+             describe('Smart Doc System E2E Tests', () => {
+               const baseUrl = 'http://localhost:4300'; // Angular dev server
+             
+               it('Visits the Dashboard', () => {
+                 cy.visit(baseUrl + '/');
+                 cy.contains('Dashboard'); // Adjust if you have a heading or element
+               });
+             
+               it('Navigates to Upload page', () => {
+                 cy.visit(baseUrl + '/upload');
+                 cy.get('form').should('exist'); // Check if upload form exists
+                 cy.get('button[type="submit"]').should('exist'); // Check upload button
+               });
+             
+               it('Navigates to Documents page', () => {
+                 cy.visit(baseUrl + '/documents');
+                 cy.get('table').should('exist'); // Check if document table exists
+               });
+             
+               it('Navigates to Search page', () => {
+                 cy.visit(baseUrl + '/search');
+                 cy.get('input[type="text"]').should('exist'); // Check search input
+                 cy.get('button').contains('Search').should('exist'); // Check search button
+               });
+             
+               it('Visits Analysis page with dummy task_id', () => {
+                 // cypress/e2e/smart-doc.spec.js
+                 
+                 describe('Smart Doc System E2E', () => {
+                   const baseUrl = 'http://localhost:4300';
+                 
+                   beforeEach(() => {
+                     cy.visit(baseUrl); // Start from dashboard
+                   });
+                 
+                   it('Dashboard loads', () => {
+                        
+                                          
+                   });
+                 
+                   it('Navigate to Upload page', () => {
+                     cy.visit(`${baseUrl}/upload`);
+                     cy.get('form').should('exist'); // Check upload form exists
+                   });
+                 
+                   it('Navigate to Documents page', () => {
+                     cy.visit(`${baseUrl}/documents`);
+                     cy.get('table').should('exist'); // Check documents table exists
+                   });
+                 
+                   it('Navigate to Search page', () => {
+                     cy.visit(`${baseUrl}/search`);
+                     cy.get('input[type="text"]').should('exist'); // Check search input exists
+                   });
+                 
+                   it('Navigate to Analysis page', () => {
+                     /// <reference types="cypress" />
+                     
+                     describe('Smart Doc System App Routes', () => {
+                     
+                       beforeEach(() => {
+                         // Replace with your dev server URL
+                         cy.visit('http://localhost:4300');
+                       });
+                     
+                       it('Dashboard page should load', () => {
+                         cy.contains('Dashboard').should('exist');
+                       });
+                     
+                       it('Upload page should load', () => {
+                         cy.contains('Upload').click();
+                         cy.url().should('include', '/upload');
+                         cy.contains('Upload Document').should('exist'); // adjust selector if needed
+                       });
+                     
+                       it('Documents page should load', () => {
+                         cy.contains('Documents').click();
+                         cy.url().should('include', '/documents');
+                         cy.contains('Document List').should('exist'); // adjust selector
+                       });
+                     
+                       it('Search page should load', () => {
+                         cy.contains('Search').click();
+                         cy.url().should('include', '/search');
+                         cy.contains('Search Documents').should('exist'); // adjust selector
+                       });
+                     
+                       it('Analysis Result page should load', () => {
+                         // cypress/e2e/app_spec.cy.ts
+                         describe('Smart Doc App', () => {
+                           
+                           const baseUrl = 'http://localhost:4300';
+                         
+                           it('should load Dashboard', () => {
+                             cy.visit(`${baseUrl}/`);
+                             cy.contains('Dashboard', { timeout: 10000 }).should('exist');
+                           });
+                         
+                           it('should load Upload page', () => {
+                             cy.visit(`${baseUrl}/upload`);
+                             cy.contains('Upload', { timeout: 10000 }).should('exist');
+                           });
+                         
+                           it('should load Documents page', () => {
+                             cy.visit(`${baseUrl}/documents`);
+                             cy.contains('Documents', { timeout: 10000 }).should('exist');
+                           });
+                         
+                           it('should load Search page', () => {
+                             cy.visit(`${baseUrl}/search`);
+                             cy.contains('Search', { timeout: 10000 }).should('exist');
+                           });
+                         
+                           it('should load Analysis Result page', () => {
+                             // cypress/e2e/app_spec.cy.ts
+                             describe('Smart Doc System App', () => {
+                               const baseUrl = 'http://localhost:4300';
+                             
+                               it('should load Dashboard page', () => {
+                                 cy.visit(`${baseUrl}/`);
+                                 cy.contains('Dashboard', { timeout: 10000 }).should('exist');
+                               });
+                             
+                               it('should load Upload page', () => {
+                                 cy.visit(`${baseUrl}/upload`);
+                                 cy.contains('Upload', { timeout: 10000 }).should('exist');
+                                 cy.get('input[type="file"]').should('exist'); // optional: check file input exists
+                               });
+                             
+                               it('should load Documents page', () => {
+                                 cy.visit(`${baseUrl}/documents`);
+                                 cy.contains('Documents', { timeout: 10000 }).should('exist');
+                                 cy.get('.document-list').should('exist'); // adjust selector to your list container
+                               });
+                             
+                               it('should load Search page', () => {
+                                 cy.visit(`${baseUrl}/search`);
+                                 cy.contains('Search', { timeout: 10000 }).should('exist');
+                                 cy.get('input[type="search"]').should('exist'); // adjust selector
+                               });
+                             
+                               it('should load Analysis Result page', () => {
+                                 // cypress/e2e/analysis-result.spec.ts
+                                 
+                                 describe('Analysis Result Page', () => {
+                                   
+                                   beforeEach(() => {
+                                     // Visit the analysis page with a sample task_id
+                                     cy.visit('/analysis/123'); 
+                                   });
+                                 
+                                   it('should load the Analysis Result page', () => {
+                                     cy.visit('/analysis/123');
+                                     
+                                     // Wait for documents/cards to load
+                                     cy.get('.document-card', { timeout: 10000 })
+                                       .should('exist');
+                                     
+                                     // Double click a document
+                                     cy.get('.document-card')
+                                       .first()
+                                       .dblclick({ force: true });
+                                     
+                                     // Now assert result/list appears
+                                     cy.get('.document-list', { timeout: 10000 })
+                                       .should('exist')
+                                       .and('be.visible');
+                                   });
+                                 
+                                   it('should display a table of results (if applicable)', () => {
+                                     // Adjust selector to match your table or results container
+                                     cy.get('app-analysis-result table', { timeout: 10000 })
+                                       .should('exist')
+                                       .and('be.visible');
+                                   });
+                                 });
+                               });
+                             });
+                             
+                           });
+                         
+                         });
+                       });
+                     
+                     });
+                   });
+                 });
+               });
+             });
+           });
+       });
+  })
+})

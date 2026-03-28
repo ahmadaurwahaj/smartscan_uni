@@ -1,0 +1,36 @@
+services:
+  db:
+    image: mariadb:11.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      MYSQL_DATABASE: ${DB_NAME:-smart_docs}
+      MYSQL_USER: ${DB_USER:-smartapp}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-smartpass}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 20s
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+
+  api:
+    build: .
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_USER: ${DB_USER:-smartapp}
+      DB_PASSWORD: ${DB_PASSWORD:-smartpass}
+      DB_NAME: ${DB_NAME:-smart_docs}
+      SECRET_KEY: ${SECRET_KEY:-CHANGE_THIS_SECRET_KEY}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  mariadb_data:
