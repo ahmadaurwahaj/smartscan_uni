@@ -26,23 +26,26 @@ router = APIRouter(prefix="/documents", tags=["Documents"])
 # ------------------------------------------------------------
 # Upload Document
 # ------------------------------------------------------------
-@router.post("/upload", response_model=DocumentResponse)
-def upload_doc(
-    file: UploadFile = File(...),
+@router.post("/upload", response_model=list[DocumentResponse])
+def upload_docs(
+    files: list[UploadFile] = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    logger.info(f"Upload request: user_id={current_user.id}, filename='{file.filename}'")
-    try:
-        result = upload_document(db, file, current_user.id)
-        logger.info(f"Document uploaded: id={result.id}, filename='{result.filename}'")
-        return result
-    except HTTPException as e:
-        logger.warning(f"Upload rejected: {e.detail}")
-        raise
-    except Exception as e:
-        logger.error(f"Unexpected error during upload of '{file.filename}': {e}")
-        raise HTTPException(status_code=500, detail="Upload failed. Please try again.")
+    logger.info(f"Upload request: user_id={current_user.id}, file count={len(files)}")
+    results = []
+    for f in files:
+        try:
+            result = upload_document(db, f, current_user.id)
+            logger.info(f"Document uploaded: id={result.id}, filename='{result.filename}'")
+            results.append(result)
+        except HTTPException as e:
+            logger.warning(f"Upload rejected for '{f.filename}': {e.detail}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error during upload of '{f.filename}': {e}")
+            raise HTTPException(status_code=500, detail=f"Upload failed for '{f.filename}'.")
+    return results
 
 
 # ------------------------------------------------------------
@@ -113,7 +116,16 @@ def get_doc_text(
     doc = get_document_model(doc_id, db)
     if doc.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied.")
-    return {"text": doc.text_content or "No text could be extracted from this document."}
+    text_file_path = f"{doc.filepath}.txt"
+    text_content = ""
+    if os.path.exists(text_file_path):
+        try:
+            with open(text_file_path, "r", encoding="utf-8") as tf:
+                text_content = tf.read().strip()
+        except Exception as e:
+            logger.warning(f"Could not read text file for doc_id={doc_id}: {e}")
+
+    return {"text": text_content or "No text could be extracted from this document."}
 
 
 @router.delete("/{doc_id}")

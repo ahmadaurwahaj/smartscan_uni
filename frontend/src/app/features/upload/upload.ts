@@ -12,7 +12,7 @@ import { ApiService } from '../../core/api.service';
 })
 export class UploadComponent {
 
-  selectedFile!: File;
+  selectedFiles: File[] = [];
   message = '';
   isError = false;
   uploading = false;
@@ -20,13 +20,13 @@ export class UploadComponent {
   constructor(private api: ApiService, private router: Router) {}
 
   onFileSelect(event: any) {
-    this.selectedFile = event.target.files[0];
+    this.selectedFiles = Array.from(event.target.files);
   }
 
   onUpload(event: Event) {
     event.preventDefault();
 
-    if (!this.selectedFile) {
+    if (this.selectedFiles.length === 0) {
       this.message = 'Please select a file first.';
       this.isError = true;
       return;
@@ -36,11 +36,11 @@ export class UploadComponent {
     this.message = '';
 
     const formData = new FormData();
-    formData.append('file', this.selectedFile);
+    this.selectedFiles.forEach(file => formData.append('files', file));
 
     this.api.uploadDocument(formData).subscribe({
-      next: (res) => {
-        this.message = `"${res.filename}" uploaded successfully!`;
+      next: (res: any[]) => {
+        this.message = `${res.length} document(s) uploaded successfully!`;
         this.isError = false;
         this.uploading = false;
         setTimeout(() => this.router.navigate(['/documents']), 1000);

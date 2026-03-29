@@ -14,8 +14,6 @@ class Document(Base):
     file_type = Column(String(20))
     size_kb = Column(Integer)
 
-    # NEW FIELD (important for analysis)
-    text_content = Column(Text, nullable=True)
 
     owner_id = Column(Integer, nullable=False)
 

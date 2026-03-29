@@ -3,6 +3,8 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 import uuid
+import os
+import time
 from datetime import datetime
 from app.models.analysis_task import AnalysisTask
 from app.models.keyword_stat import KeywordStat
@@ -71,7 +73,21 @@ def _run_analysis(db: Session, task_id: str) -> None:
         return
 
     document = db.query(Document).filter(Document.id == task.document_id).first()
-    if not document or not document.text_content:
+    if not document:
+        task.status = "failed"
+        db.commit()
+        logger.warning(f"No document found for task_id={task_id}")
+        return
+
+    text_file_path = f"{document.filepath}.txt"
+    try:
+        with open(text_file_path, "r", encoding="utf-8") as tf:
+            text_content = tf.read().strip()
+    except Exception as e:
+        logger.warning(f"Could not read text file for task_id={task_id}: {e}")
+        text_content = ""
+
+    if not text_content:
         task.status = "failed"
         db.commit()
         logger.warning(f"No text content for task_id={task_id}")
@@ -80,6 +96,7 @@ def _run_analysis(db: Session, task_id: str) -> None:
     # Progress: 20% — document loaded
     task.progress = 20
     db.commit()
+    time.sleep(2)
 
     # Check cancellation
     db.refresh(task)
@@ -93,16 +110,22 @@ def _run_analysis(db: Session, task_id: str) -> None:
     # Progress: 50% — extracting keywords
     task.progress = 50
     db.commit()
+    time.sleep(2)
 
     db.refresh(task)
     if task.status == "cancelled":
         return
 
-    keywords = extract_keywords(document.text_content)
+    keywords = extract_keywords(text_content)
 
     # Progress: 80% — saving results
     task.progress = 80
     db.commit()
+    time.sleep(2)
+
+    db.refresh(task)
+    if task.status == "cancelled":
+        return
 
     for word, freq in keywords.items():
         db.add(KeywordStat(keyword=word, count=freq, document_id=document.id))

@@ -35,13 +35,17 @@ def upload_document(db: Session, file: UploadFile, user_id: int):
     file_size_kb = os.path.getsize(file_path) // 1024
     logger.debug(f"File type: {file_type}, size: {file_size_kb} KB")
 
+    text_file_path = f"{file_path}.txt"
     logger.debug(f"Extracting text from: {file_path}")
     try:
         text_content = extract_text_from_file(file_path)
         logger.debug(f"Text extracted, length={len(text_content) if text_content else 0} chars")
+        with open(text_file_path, "w", encoding="utf-8") as tf:
+            tf.write(text_content or "")
+        logger.debug(f"Extracted text saved to: {text_file_path}")
     except Exception as e:
-        logger.error(f"Text extraction failed for '{file.filename}': {e}")
-        raise HTTPException(status_code=500, detail="Could not extract text from the document.")
+        logger.error(f"Text extraction or saving failed for '{file.filename}': {e}")
+        raise HTTPException(status_code=500, detail="Could not extract and save text from the document.")
 
     try:
         doc = Document(
@@ -49,7 +53,6 @@ def upload_document(db: Session, file: UploadFile, user_id: int):
             filepath=file_path,
             file_type=file_type,
             size_kb=file_size_kb,
-            text_content=text_content,
             owner_id=user_id,
             status="uploaded"
         )
@@ -127,6 +130,14 @@ def delete_document(doc_id: int, db: Session):
             logger.debug(f"File deleted from disk: {doc.filepath}")
         except Exception as e:
             logger.warning(f"Could not delete file from disk: {doc.filepath}: {e}")
+
+    text_file_path = f"{doc.filepath}.txt"
+    if os.path.exists(text_file_path):
+        try:
+            os.remove(text_file_path)
+            logger.debug(f"Text file deleted from disk: {text_file_path}")
+        except Exception as e:
+            logger.warning(f"Could not delete text file from disk: {text_file_path}: {e}")
 
     try:
         db.delete(doc)
