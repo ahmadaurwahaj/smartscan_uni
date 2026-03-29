@@ -18,7 +18,9 @@ services:
       - "${MYSQL_PORT:-3306}:3306"
 
   api:
-    build: .
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     environment:
       DB_HOST: db
       DB_PORT: "3306"
@@ -33,6 +35,20 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "4200:4200"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - api
 
 volumes:
   mariadb_data:
