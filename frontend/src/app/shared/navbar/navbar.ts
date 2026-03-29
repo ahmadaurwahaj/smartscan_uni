@@ -5,7 +5,6 @@ import { AuthService } from '../../core/auth.service';
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [NgIf],
   templateUrl: './navbar.html',
 })
 export class NavbarComponent {
