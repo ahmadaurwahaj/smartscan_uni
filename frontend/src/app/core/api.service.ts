@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { AuthService } from './auth.service';
 
@@ -43,8 +43,23 @@ export class ApiService {
     return this.http.post(`${BASE_URL}/analysis/start/${docId}`, {}, { headers: this.headers() });
   }
 
-  getAnalysisResult(taskId: string): Observable<any> {
-    return this.http.get(`${BASE_URL}/analysis/result/${taskId}`, { headers: this.headers() });
+  getAnalysisResult(taskId: string, filters?: any): Observable<any> {
+    let params = new HttpParams();
+    if (filters) {
+      if (filters.keyword) params = params.set('keyword', filters.keyword);
+      if (filters.min_freq) params = params.set('min_freq', filters.min_freq);
+      if (filters.max_freq) params = params.set('max_freq', filters.max_freq);
+      if (filters.sort_by) params = params.set('sort_by', filters.sort_by);
+      if (filters.limit) params = params.set('limit', filters.limit);
+    }
+    return this.http.get(`${BASE_URL}/analysis/result/${taskId}`, { headers: this.headers(), params });
+  }
+
+  exportAnalysisResult(taskId: string, format: string): Observable<Blob> {
+    return this.http.get(`${BASE_URL}/analysis/export/${taskId}?format=${format}`, {
+      headers: this.headers(),
+      responseType: 'blob'
+    });
   }
 
   cancelAnalysis(taskId: string): Observable<any> {

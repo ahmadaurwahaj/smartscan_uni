@@ -64,6 +64,37 @@
       </div>
     </div>
 
+    <!-- C01 & C02 — Filters and Exports -->
+    <div *ngIf="result.status === 'completed'" class="bg-white rounded-lg shadow p-4 mb-6 flex flex-wrap gap-4 items-end justify-between">
+      <div class="flex flex-wrap gap-4">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Search Keyword</label>
+          <input type="text" [(ngModel)]="keywordFilter" (input)="applyFilters()" placeholder="Filter..." class="border rounded px-3 py-1.5 text-sm w-40 focus:ring focus:ring-blue-200">
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Min. Frequency</label>
+          <input type="number" [(ngModel)]="minFreq" (input)="applyFilters()" min="1" placeholder="Ex: 2" class="border rounded px-3 py-1.5 text-sm w-24 focus:ring focus:ring-blue-200">
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Sort By</label>
+          <select [(ngModel)]="sortBy" (change)="applyFilters()" class="border rounded px-3 py-1.5 text-sm focus:ring focus:ring-blue-200">
+            <option value="frequency_desc">Frequency (High to Low)</option>
+            <option value="frequency_asc">Frequency (Low to High)</option>
+            <option value="keyword_asc">Keyword (A-Z)</option>
+            <option value="keyword_desc">Keyword (Z-A)</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button (click)="exportCSV()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded text-sm transition">
+          Export CSV
+        </button>
+        <button (click)="exportPDF()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded text-sm transition">
+          Export PDF
+        </button>
+      </div>
+    </div>
+
     <!-- Tabs for Keywords Table + Chart (R14, R15) -->
     <div *ngIf="result.status === 'completed' && result.keywords.length > 0" class="bg-white rounded-lg shadow">
       <div class="flex border-b">

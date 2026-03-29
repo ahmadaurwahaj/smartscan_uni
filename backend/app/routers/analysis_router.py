@@ -1,6 +1,6 @@
 # app/routers/analysis_router.py
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -11,6 +11,8 @@ from app.services.analysis_service import (
     process_analysis_background,
     get_analysis_result,
     get_analysis_history,
+    export_results_as_csv,
+    export_results_as_pdf,
 )
 from app.services.auth_service import get_current_user
 from app.models.user import User
@@ -69,15 +71,43 @@ def start_analysis(
 @router.get("/result/{task_id}")
 def get_result(
     task_id: str,
+    keyword_filter: str = Query(None, alias="keyword"),
+    min_freq: int = Query(None),
+    max_freq: int = Query(None),
+    sort_by: str = Query("frequency_desc"),
+    limit: int = Query(50),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     logger.info(f"Fetching result: task_id={task_id}")
     try:
-        return get_analysis_result(db, task_id)
+        return get_analysis_result(db, task_id, keyword_filter, min_freq, max_freq, sort_by, limit)
     except Exception as e:
         logger.error(f"Error fetching result for task_id={task_id}: {e}")
         raise HTTPException(status_code=500, detail="Could not retrieve analysis result.")
+
+
+# ------------------------------------------------------------
+# Export analysis result (C02)
+# ------------------------------------------------------------
+@router.get("/export/{task_id}")
+def export_result(
+    task_id: str,
+    format: str = Query("csv"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    logger.info(f"Exporting result: task_id={task_id}, format={format}")
+    try:
+        if format.lower() == "pdf":
+            return export_results_as_pdf(db, task_id)
+        else:
+            return export_results_as_csv(db, task_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error exporting result for task_id={task_id}: {e}")
+        raise HTTPException(status_code=500, detail="Could not export analysis result.")
 
 
 # ------------------------------------------------------------

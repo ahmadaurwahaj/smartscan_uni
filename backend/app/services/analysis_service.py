@@ -14,6 +14,10 @@ from app.utils.logger import get_logger
 
 logger = get_logger("analysis_service")
 
+import csv
+import io
+from fastapi.responses import StreamingResponse
+
 
 # -----------------------------------------------------------
 # Create new analysis task
@@ -144,18 +148,114 @@ def _run_analysis(db: Session, task_id: str) -> None:
 # -----------------------------------------------------------
 # Get analysis result
 # -----------------------------------------------------------
-def get_analysis_result(db: Session, task_id: str) -> dict:
+def get_analysis_result(
+    db: Session, 
+    task_id: str, 
+    keyword_filter: str = None, 
+    min_freq: int = None, 
+    max_freq: int = None, 
+    sort_by: str = "frequency_desc", 
+    limit: int = 50
+) -> dict:
     task = db.query(AnalysisTask).filter(AnalysisTask.task_id == task_id).first()
     if not task:
         return {"task_id": task_id, "status": "not_found", "progress": 0, "keywords": []}
 
-    stats = db.query(KeywordStat).filter(KeywordStat.document_id == task.document_id).all()
+    query = db.query(KeywordStat).filter(KeywordStat.document_id == task.document_id)
+
+    if keyword_filter:
+        query = query.filter(KeywordStat.keyword.ilike(f"%{keyword_filter}%"))
+    if min_freq is not None:
+        query = query.filter(KeywordStat.count >= min_freq)
+    if max_freq is not None:
+        query = query.filter(KeywordStat.count <= max_freq)
+
+    if sort_by == "frequency_desc":
+        query = query.order_by(KeywordStat.count.desc())
+    elif sort_by == "frequency_asc":
+        query = query.order_by(KeywordStat.count.asc())
+    elif sort_by == "keyword_asc":
+        query = query.order_by(KeywordStat.keyword.asc())
+    elif sort_by == "keyword_desc":
+        query = query.order_by(KeywordStat.keyword.desc())
+    else:
+        query = query.order_by(KeywordStat.count.desc())
+
+    if limit and limit > 0:
+        query = query.limit(limit)
+
+    stats = query.all()
     return {
         "task_id": str(task.task_id),
         "status": task.status or "pending",
         "progress": task.progress or 0,
         "keywords": [{"keyword": s.keyword, "frequency": s.count} for s in stats]
     }
+
+# -----------------------------------------------------------
+# Export results (CSV / PDF)
+# -----------------------------------------------------------
+def export_results_as_csv(db: Session, task_id: str) -> StreamingResponse:
+    task = db.query(AnalysisTask).filter(AnalysisTask.task_id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    stats = db.query(KeywordStat).filter(KeywordStat.document_id == task.document_id).order_by(KeywordStat.count.desc()).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Keyword", "Frequency"])
+    for stat in stats:
+        writer.writerow([stat.keyword, stat.count])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=analysis_{task_id}.csv"}
+    )
+
+def export_results_as_pdf(db: Session, task_id: str) -> StreamingResponse:
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
+        from reportlab.lib import colors
+    except ImportError:
+        raise HTTPException(status_code=500, detail="reportlab is not installed. PDF export is unavailable.")
+
+    task = db.query(AnalysisTask).filter(AnalysisTask.task_id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    stats = db.query(KeywordStat).filter(KeywordStat.document_id == task.document_id).order_by(KeywordStat.count.desc()).all()
+
+    output = io.BytesIO()
+    doc = SimpleDocTemplate(output, pagesize=letter)
+    elements = []
+
+    data = [["Keyword", "Frequency"]]
+    for stat in stats:
+        data.append([stat.keyword, str(stat.count)])
+
+    table = Table(data)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    elements.append(table)
+    doc.build(elements)
+
+    output.seek(0)
+    return StreamingResponse(
+        output,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=analysis_{task_id}.pdf"}
+    )
 
 
 # -----------------------------------------------------------

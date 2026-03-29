@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
 import { Chart, registerables } from 'chart.js';
 
@@ -20,7 +21,7 @@ interface AnalysisResult {
   templateUrl: './analysis.html',
   styleUrls: ['./analysis.css'],
   standalone: true,
-  imports: [CommonModule]
+  imports: [CommonModule, FormsModule]
 })
 export class AnalysisResultComponent implements OnInit, OnDestroy, AfterViewInit {
   @ViewChild('chartCanvas') chartCanvas!: ElementRef<HTMLCanvasElement>;
@@ -33,6 +34,11 @@ export class AnalysisResultComponent implements OnInit, OnDestroy, AfterViewInit
   activeTab: 'keywords' | 'chart' = 'keywords';
   private chart: Chart | null = null;
   private pollInterval: any = null;
+  private filterTimeout: any = null;
+
+  keywordFilter = '';
+  minFreq: number | null = null;
+  sortBy = 'frequency_desc';
 
   constructor(private api: ApiService, private route: ActivatedRoute) {}
 
@@ -57,7 +63,12 @@ export class AnalysisResultComponent implements OnInit, OnDestroy, AfterViewInit
   }
 
   fetchResult(): void {
-    this.api.getAnalysisResult(this.taskId).subscribe({
+    const filters = {
+      keyword: this.keywordFilter || undefined,
+      min_freq: this.minFreq || undefined,
+      sort_by: this.sortBy || undefined
+    };
+    this.api.getAnalysisResult(this.taskId, filters).subscribe({
       next: (data: AnalysisResult) => {
         this.result = data;
         this.loading = false;
@@ -136,6 +147,40 @@ export class AnalysisResultComponent implements OnInit, OnDestroy, AfterViewInit
         this.loading = false;
       }
     });
+  }
+
+  // C01 — Apply Filters
+  applyFilters(): void {
+    if (this.filterTimeout) clearTimeout(this.filterTimeout);
+    this.filterTimeout = setTimeout(() => {
+      this.fetchResult();
+    }, 400);
+  }
+
+  // C02 — Exports
+  exportCSV(): void {
+    this.api.exportAnalysisResult(this.taskId, 'csv').subscribe({
+      next: (blob) => this.downloadBlob(blob, `analysis_${this.taskId}.csv`),
+      error: () => alert('CSV Export failed.')
+    });
+  }
+
+  exportPDF(): void {
+    this.api.exportAnalysisResult(this.taskId, 'pdf').subscribe({
+      next: (blob) => this.downloadBlob(blob, `analysis_${this.taskId}.pdf`),
+      error: () => alert('PDF Export failed.')
+    });
+  }
+
+  private downloadBlob(blob: Blob, filename: string): void {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   }
 
   // R15 — bar chart using Chart.js
